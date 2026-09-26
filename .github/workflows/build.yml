@@ -1,0 +1,51 @@
+name: Build GH-Offset-Dumper
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            platform_msbuild: x64
+          - platform: Win32
+            platform_msbuild: Win32
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution (Release)
+        run: |
+          msbuild GH-Offset-Dumper.sln `
+            /p:Configuration=Release `
+            /p:Platform=${{ matrix.platform_msbuild }} `
+            /p:PlatformToolset=v143 `
+            /m `
+            /v:minimal
+
+      - name: List output files
+        run: |
+          Get-ChildItem -Path bin -Recurse -Filter *.exe | Format-Table Name, Length, FullName
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GH-Offset-Dumper-${{ matrix.platform }}
+          path: |
+            bin/**/*.exe
+          if-no-files-found: error
+          retention-days: 30
