@@ -18,8 +18,8 @@ jobs:
         include:
           - platform: x64
             platform_msbuild: x64
-          - platform: Win32
-            platform_msbuild: Win32
+          - platform: x86
+            platform_msbuild: x86
 
     steps:
       - name: Checkout
