@@ -1,6 +1,8 @@
 // GH Offset Dumper - Simple GUI + CLI support
+#define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 #include <commdlg.h>
+#include <shellapi.h>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -16,6 +18,7 @@
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "shell32.lib")
 
 // Control handles
 static HWND g_hEditConfig = nullptr;
@@ -94,10 +97,10 @@ void RunDump()
     GetTempPathA(MAX_PATH, tempPath);
     GetTempFileNameA(tempPath, "ghd", 0, tempFile);
 
-    FILE* oldStdout = stdout;
-    FILE* oldStderr = stderr;
-    FILE* f = freopen(tempFile, "w", stdout);
-    freopen(tempFile, "a", stderr);
+    FILE* fOut = nullptr;
+    FILE* fErr = nullptr;
+    freopen_s(&fOut, tempFile, "w", stdout);
+    freopen_s(&fErr, tempFile, "a", stderr);
 
     // Build fake argv for ParseCommandLine
     // argv[0] = program name, argv[1] = path to config.json
@@ -114,11 +117,11 @@ void RunDump()
         success = false;
     }
 
-    // Restore stdout
+    // Flush and close redirected streams
     fflush(stdout);
     fflush(stderr);
-    freopen("CONOUT$", "w", stdout);
-    freopen("CONOUT$", "w", stderr);
+    if (fOut) fclose(fOut);
+    if (fErr) fclose(fErr);
 
     // Read the captured log
     std::ifstream logFile(tempFile);
@@ -324,8 +327,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 
         // Show a console for CLI mode
         AllocConsole();
-        freopen("CONOUT$", "w", stdout);
-        freopen("CONOUT$", "w", stderr);
+        FILE* fOut = nullptr;
+        FILE* fErr = nullptr;
+        freopen_s(&fOut, "CONOUT$", "w", stdout);
+        freopen_s(&fErr, "CONOUT$", "w", stderr);
 
         bool ok = gh::ParseCommandLine(argc, argv.data());
         LocalFree(argvW);
@@ -376,15 +381,4 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     }
 
     return (int)msg.wParam;
-}
-
-// Keep a classic main for compatibility if someone links differently
-int main(int argc, const char** argv)
-{
-    if (argc >= 2)
-    {
-        return gh::ParseCommandLine(argc, argv) ? 0 : 1;
-    }
-    // No args → start GUI
-    return wWinMain(GetModuleHandleW(nullptr), nullptr, GetCommandLineW(), SW_SHOW);
 }
